@@ -280,8 +280,8 @@
         <input type="text" id="playerNameInput" placeholder="Tu nombre" maxlength="15">
         <button onclick="startGame()">ENTRAR AL JUEGO</button>
         <p style="margin-top: 30px; font-size: 14px; color: #888;">
-            WASD: Mover | CLICK: Atacar | E: Craftear | C: Chat<br>
-            B: Barricada | M: Muro | T: Trampa
+            WASD: Mover | CLICK/ESPACIO: Atacar | F: Recoger | E: Craftear<br>
+            R: Usar item | B: Barricada | M: Muro | T: Trampa | C: Chat
         </p>
     </div>
 
@@ -328,13 +328,15 @@
         <div id="controls">
             <strong>CONTROLES:</strong><br>
             WASD: Mover<br>
-            Click: Atacar<br>
-            E: Craftear<br>
+            Click/ESPACIO: Atacar<br>
+            F: Recoger item<br>
+            E: Abrir crafteo<br>
+            R: Usar item<br>
             C: Chat<br>
             B: Barricada<br>
             M: Muro<br>
             T: Trampa<br>
-            1-5: Seleccionar item
+            1-5: Seleccionar slot
         </div>
 
         <!-- INVENTARIO -->
@@ -354,15 +356,21 @@
         <div id="craftMenu">
             <h2>📦 CRAFTEO</h2>
             <div class="craft-recipe" onclick="craft('vendaje')">
-                💊 Vendaje (🧵 Tela + Alcohol) → +30 HP
+                💊 <strong>Vendaje</strong><br>
+                Materiales: 🧵 Tela<br>
+                Efecto: +30 HP
             </div>
             <div class="craft-recipe" onclick="craft('bate_mejorado')">
-                🏏 Bate Mejorado (Bate + ⚙️ Metal) → +20 daño
+                🏏 <strong>Bate Mejorado</strong><br>
+                Materiales: 🏏 Bate + ⚙️ Metal<br>
+                Efecto: 35 de daño (antes 15)
             </div>
             <div class="craft-recipe" onclick="craft('molotov')">
-                🔥 Molotov (Botella + Gasolina + 🧵 Tela) → Daño área
+                🔥 <strong>Molotov</strong><br>
+                Materiales: 🧵 Tela<br>
+                Efecto: 50 de daño
             </div>
-            <button onclick="closeCraft()" style="margin-top: 20px; padding: 10px 20px; background: #666; color: #fff; border: none; border-radius: 5px; cursor: pointer;">CERRAR</button>
+            <button onclick="closeCraft()" style="margin-top: 20px; padding: 10px 20px; background: #666; color: #fff; border: none; border-radius: 5px; cursor: pointer;">CERRAR (ESC)</button>
         </div>
     </div>
 
@@ -820,6 +828,7 @@
             Object.entries(zombies).forEach(([id, zombie]) => {
                 // Buscar jugador más cercano
                 let closestPlayer = null;
+                let closestPlayerId = null;
                 let closestDist = 20; // Radio de detección
                 
                 Object.entries(players).forEach(([pId, player]) => {
@@ -827,6 +836,7 @@
                     if(dist < closestDist) {
                         closestDist = dist;
                         closestPlayer = player;
+                        closestPlayerId = pId;
                     }
                 });
                 
@@ -838,6 +848,33 @@
                     
                     zombie.x += Math.cos(angle) * speed;
                     zombie.y += Math.sin(angle) * speed;
+                    
+                    // DAÑO AL JUGADOR si está muy cerca
+                    if(closestDist < 0.8) {
+                        const currentTime = Date.now();
+                        if(!zombie.lastAttack || currentTime - zombie.lastAttack > 1000) {
+                            zombie.lastAttack = currentTime;
+                            
+                            // Daño según tipo de zombie
+                            let damage = zombie.type === 'tank' ? 20 : (zombie.type === 'fast' ? 10 : 15);
+                            
+                            // Si es el jugador local, actualizar
+                            if(closestPlayerId === playerId) {
+                                localPlayer.health = Math.max(0, localPlayer.health - damage);
+                                database.ref('players/' + playerId + '/health').set(localPlayer.health);
+                                updateHUD();
+                                
+                                if(localPlayer.health <= 0) {
+                                    die();
+                                }
+                            } else {
+                                // Daño a otros jugadores
+                                database.ref('players/' + closestPlayerId + '/health').transaction((current) => {
+                                    return Math.max(0, (current || 100) - damage);
+                                });
+                            }
+                        }
+                    }
                 } else {
                     // Deambular hacia punto objetivo
                     if(!zombie.targetX) {
@@ -861,7 +898,8 @@
                     x: zombie.x,
                     y: zombie.y,
                     targetX: zombie.targetX,
-                    targetY: zombie.targetY
+                    targetY: zombie.targetY,
+                    lastAttack: zombie.lastAttack || 0
                 });
             });
         }
@@ -893,6 +931,76 @@
                         });
                         
                         database.ref('zombies/' + id).remove();
+                        
+                        // Actualizar contador
+                        database.ref('worldState/zombiesAlive').transaction((current) => {
+                            const newCount = (current || 0) - 1;
+                            if(newCount <= 0) {
+                                database.ref('worldState/gameWon').set(true);
+                            }
+                            return newCount;
+                        });
+                    } else {
+                        database.ref('zombies/' + id).update({health: zombie.health});
+                    }
+                }
+            });
+            
+            // PvP - atacar otros jugadores
+            Object.entries(players).forEach(([id, player]) => {
+                if(id === playerId) return;
+                const dist = Math.hypot(player.x - x, player.y - y);
+                if(dist < 1.5) {
+                    database.ref('players/' + id + '/health').transaction((current) => {
+                        return Math.max(0, (current || 100) - weapon.damage);
+                    });
+                }
+            });
+        }
+
+        // Ataque con ESPACIO - ataca al zombie/jugador más cercano
+        function attackNearest() {
+            const selectedItem = localPlayer.inventory[localPlayer.selectedSlot];
+            const weapon = ITEMS[selectedItem];
+            
+            if(!weapon || !weapon.damage) {
+                addChatMessage('Necesitas un arma equipada', 'system');
+                return;
+            }
+
+            let nearestTarget = null;
+            let nearestDist = 2; // Radio de ataque con espacio
+
+            // Buscar zombie más cercano
+            Object.entries(zombies).forEach(([id, zombie]) => {
+                const dist = Math.hypot(zombie.x - localPlayer.x, zombie.y - localPlayer.y);
+                if(dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestTarget = {type: 'zombie', id: id, data: zombie};
+                }
+            });
+
+            // Buscar jugador más cercano (PvP)
+            Object.entries(players).forEach(([id, player]) => {
+                if(id === playerId) return;
+                const dist = Math.hypot(player.x - localPlayer.x, player.y - localPlayer.y);
+                if(dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestTarget = {type: 'player', id: id, data: player};
+                }
+            });
+
+            // Atacar objetivo más cercano
+            if(nearestTarget) {
+                if(nearestTarget.type === 'zombie') {
+                    attack(nearestTarget.data.x, nearestTarget.data.y);
+                } else if(nearestTarget.type === 'player') {
+                    attack(nearestTarget.data.x, nearestTarget.data.y);
+                }
+            } else {
+                addChatMessage('No hay objetivos cerca', 'system');
+            }
+        }
                         
                         // Actualizar contador
                         database.ref('worldState/zombiesAlive').transaction((current) => {
@@ -1029,22 +1137,52 @@
         // ==================== CRAFTEO ====================
         function craft(recipe) {
             if(recipe === 'vendaje') {
-                const hasCloth = localPlayer.inventory.includes('cloth');
-                if(hasCloth) {
-                    const clothIndex = localPlayer.inventory.indexOf('cloth');
+                const clothIndex = localPlayer.inventory.indexOf('cloth');
+                if(clothIndex !== -1) {
+                    // Consumir tela
                     localPlayer.inventory[clothIndex] = 'bandage';
                     database.ref('players/' + playerId + '/inventory').set(localPlayer.inventory);
-                    addChatMessage('Crafteaste: Vendaje 💊', 'system');
+                    addChatMessage('✅ Crafteaste: Vendaje 💊', 'system');
+                    updateInventoryUI();
                 } else {
-                    addChatMessage('Necesitas: Tela 🧵', 'system');
+                    addChatMessage('❌ Necesitas: Tela 🧵', 'system');
                 }
             } else if(recipe === 'bate_mejorado') {
-                const hasBat = localPlayer.inventory.includes('bat');
-                const hasMetal = localPlayer.inventory.includes('metal');
-                if(hasBat && hasMetal) {
-                    addChatMessage('Bate mejorado (funcionalidad pendiente)', 'system');
+                const batIndex = localPlayer.inventory.indexOf('bat');
+                const metalIndex = localPlayer.inventory.indexOf('metal');
+                
+                if(batIndex !== -1 && metalIndex !== -1) {
+                    // Consumir bate y metal, crear bate mejorado
+                    localPlayer.inventory[metalIndex] = ''; // Eliminar metal
+                    // El bate se mantiene pero con más daño (lo manejamos en ITEMS)
+                    addChatMessage('✅ Bate mejorado creado! (Ahora hace 35 de daño)', 'system');
+                    
+                    // Actualizar el item a una versión mejorada
+                    ITEMS.bat.damage = 35;
+                    ITEMS.bat.name = 'Bate Mejorado';
+                    
+                    database.ref('players/' + playerId + '/inventory').set(localPlayer.inventory);
+                    updateInventoryUI();
                 } else {
-                    addChatMessage('Necesitas: Bate + Metal ⚙️', 'system');
+                    addChatMessage('❌ Necesitas: Bate 🏏 + Metal ⚙️', 'system');
+                }
+            } else if(recipe === 'molotov') {
+                const clothIndex = localPlayer.inventory.indexOf('cloth');
+                
+                if(clothIndex !== -1) {
+                    // Por simplicidad, solo necesitamos tela para el molotov
+                    localPlayer.inventory[clothIndex] = 'molotov';
+                    
+                    // Agregar molotov a ITEMS si no existe
+                    if(!ITEMS.molotov) {
+                        ITEMS.molotov = {emoji: '🔥', name: 'Molotov', damage: 50};
+                    }
+                    
+                    database.ref('players/' + playerId + '/inventory').set(localPlayer.inventory);
+                    addChatMessage('✅ Crafteaste: Molotov 🔥 (50 de daño)', 'system');
+                    updateInventoryUI();
+                } else {
+                    addChatMessage('❌ Necesitas: Tela 🧵', 'system');
                 }
             }
             
@@ -1111,11 +1249,17 @@
             document.addEventListener('keydown', (e) => {
                 keys[e.key.toLowerCase()] = true;
                 
-                if(e.key.toLowerCase() === 'e') {
-                    pickupItem();
-                    openCraft();
+                if(e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    attackNearest();
                 }
                 if(e.key.toLowerCase() === 'f') {
+                    pickupItem();
+                }
+                if(e.key.toLowerCase() === 'e') {
+                    openCraft();
+                }
+                if(e.key.toLowerCase() === 'r') {
                     useItem();
                 }
                 if(e.key.toLowerCase() === 'b') {
@@ -1136,6 +1280,11 @@
                 // Selección de slots
                 if(e.key >= '1' && e.key <= '5') {
                     selectSlot(parseInt(e.key) - 1);
+                }
+                
+                // Cerrar crafteo con ESC
+                if(e.key === 'Escape') {
+                    closeCraft();
                 }
             });
 
