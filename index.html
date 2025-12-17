@@ -157,15 +157,6 @@
             border-color: #ffff00;
             background: #3a3a1a;
         }
-        .item-count {
-            position: absolute;
-            bottom: 2px;
-            right: 4px;
-            font-size: 12px;
-            background: rgba(0,0,0,0.8);
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
         #chat {
             position: fixed;
             bottom: 90px;
@@ -246,6 +237,19 @@
             margin-bottom: 30px;
             animation: pulse 1s infinite;
         }
+        #victoryScreen.defeat h1 {
+            color: #ff4444;
+        }
+        #victoryScreen p {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        #countdown {
+            font-size: 18px;
+            color: #ffff00;
+            margin-top: 20px;
+        }
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
@@ -261,7 +265,7 @@
             max-width: 200px;
         }
         
-        /* Controles móviles */
+        /* CONTROLES MÓVILES */
         #mobileControls {
             position: fixed;
             bottom: 90px;
@@ -275,7 +279,7 @@
         .mobile-btn {
             width: 60px;
             height: 60px;
-            background: rgba(255, 68, 68, 0.8);
+            background: rgba(255, 68, 68, 0.9);
             border: 3px solid #fff;
             border-radius: 50%;
             display: flex;
@@ -294,7 +298,7 @@
         }
         
         .mobile-btn.secondary {
-            background: rgba(68, 68, 255, 0.8);
+            background: rgba(68, 68, 255, 0.9);
         }
         
         .mobile-btn.secondary:active {
@@ -311,12 +315,37 @@
             display: none;
             z-index: 100;
             transform: translate(-50%, -50%);
-            animation: pulse 0.5s ease-in-out;
+            animation: pulseMove 0.5s ease-in-out;
         }
         
-        @keyframes pulse {
+        @keyframes pulseMove {
             0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
             50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.5; }
+        }
+        
+        #buildMenu {
+            display: none;
+            position: fixed;
+            bottom: 180px;
+            right: 10px;
+            background: rgba(0,0,0,0.95);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #fff;
+            z-index: 60;
+        }
+        
+        #buildMenu button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
         }
         
         @media (max-width: 768px) {
@@ -342,21 +371,12 @@
                 width: 250px;
                 height: 150px;
                 font-size: 12px;
+                bottom: 160px;
             }
             #chatInput {
                 width: 250px;
+                display: none !important;
             }
-        }
-        
-        .minimap {
-            position: fixed;
-            top: 10px;
-            left: 280px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0,0,0,0.7);
-            border: 2px solid #666;
-            border-radius: 5px;
         }
     </style>
 </head>
@@ -364,20 +384,20 @@
     <!-- PANTALLA DE LOGIN -->
     <div id="loginScreen">
         <h1>🧟 ZOMBIE SURVIVAL ONLINE 🧟</h1>
-        <p style="font-size: 18px; margin-bottom: 20px;">Elimina los 20 zombies para ganar</p>
+        <p style="font-size: 18px; margin-bottom: 20px;">Elimina los 15 zombies para ganar</p>
         <input type="text" id="playerNameInput" placeholder="Tu nombre" maxlength="15">
         <button onclick="startGame()">ENTRAR AL JUEGO</button>
         <p style="margin-top: 30px; font-size: 14px; color: #888;">
-            WASD: Mover | CLICK/ESPACIO: Atacar | F: Recoger | E: Craftear<br>
-            R: Usar item | B: Barricada | M: Muro | T: Trampa | C: Chat
+            PC: WASD, CLICK, E, F, ESPACIO<br>
+            Móvil: TAP para mover/atacar
         </p>
     </div>
 
     <!-- PANTALLA DE VICTORIA -->
     <div id="victoryScreen">
-        <h1>🎉 ¡VICTORIA! 🎉</h1>
-        <p style="font-size: 24px; margin-bottom: 20px;">¡Todos los zombies han sido eliminados!</p>
-        <button onclick="location.reload()" style="padding: 15px 40px; font-size: 20px; background: #44ff44; color: #000; border: none; border-radius: 5px; cursor: pointer;">JUGAR DE NUEVO</button>
+        <h1 id="resultTitle">🎉 ¡VICTORIA! 🎉</h1>
+        <p id="resultMessage"></p>
+        <p id="countdown">Reiniciando en 30 segundos...</p>
     </div>
 
     <!-- CONTENEDOR DEL JUEGO -->
@@ -407,43 +427,41 @@
         </div>
 
         <!-- CONTADOR DE ZOMBIES -->
-        <div id="zombieCounter">🧟 20/20</div>
+        <div id="zombieCounter">🧟 15/15</div>
 
         <!-- DÍA/NOCHE -->
         <div id="dayNight">☀️ DÍA</div>
 
+        <!-- CONTROLES PC -->
+        <div id="controls">
+            <strong>CONTROLES:</strong><br>
+            WASD: Mover<br>
+            Click/ESPACIO: Atacar<br>
+            F: Recoger<br>
+            E: Craftear<br>
+            R: Usar item<br>
+            B/M/T: Construir<br>
+            C: Chat<br>
+            1-5: Slots
+        </div>
+
         <!-- CONTROLES MÓVILES -->
         <div id="mobileControls">
-            <div class="mobile-btn" onclick="openCraft()" title="Craftear">🎒</div>
-            <div class="mobile-btn secondary" onclick="useItem()" title="Usar item">💊</div>
-            <div class="mobile-btn secondary" onclick="toggleBuildMenu()" title="Construir">🔨</div>
+            <div class="mobile-btn" onclick="openCraft()">🎒</div>
+            <div class="mobile-btn secondary" onclick="useItem()">💊</div>
+            <div class="mobile-btn secondary" onclick="toggleBuildMenu()">🔨</div>
         </div>
         
         <!-- INDICADOR DE MOVIMIENTO -->
         <div id="moveIndicator"></div>
 
-        <!-- MENÚ DE CONSTRUCCIÓN MÓVIL -->
-        <div id="buildMenu" style="display: none; position: fixed; bottom: 180px; right: 10px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 10px; border: 2px solid #fff;">
-            <div style="font-weight: bold; margin-bottom: 10px; color: #fff;">CONSTRUIR:</div>
-            <button onclick="buildStructure('barricade'); closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin: 5px 0; background: #ff4444; color: #fff; border: none; border-radius: 5px; font-size: 16px;">🚧 Barricada</button>
-            <button onclick="buildStructure('wall'); closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin: 5px 0; background: #ff4444; color: #fff; border: none; border-radius: 5px; font-size: 16px;">🧱 Muro</button>
-            <button onclick="buildStructure('trap'); closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin: 5px 0; background: #ff4444; color: #fff; border: none; border-radius: 5px; font-size: 16px;">⚠️ Trampa</button>
-            <button onclick="closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin-top: 10px; background: #666; color: #fff; border: none; border-radius: 5px;">Cerrar</button>
-        </div>
-
-        <!-- CONTROLES -->
-        <div id="controls">
-            <strong>CONTROLES:</strong><br>
-            WASD: Mover<br>
-            Click/ESPACIO: Atacar<br>
-            F: Recoger item<br>
-            E: Abrir crafteo<br>
-            R: Usar item<br>
-            C: Chat<br>
-            B: Barricada<br>
-            M: Muro<br>
-            T: Trampa<br>
-            1-5: Seleccionar slot
+        <!-- MENÚ CONSTRUCCIÓN -->
+        <div id="buildMenu">
+            <div style="font-weight: bold; margin-bottom: 10px;">CONSTRUIR:</div>
+            <button onclick="buildStructure('barricade'); closeBuildMenu();">🚧 Barricada</button>
+            <button onclick="buildStructure('wall'); closeBuildMenu();">🧱 Muro</button>
+            <button onclick="buildStructure('trap'); closeBuildMenu();">⚠️ Trampa</button>
+            <button onclick="closeBuildMenu();" style="background: #666; margin-top: 10px;">Cerrar</button>
         </div>
 
         <!-- INVENTARIO -->
@@ -457,7 +475,7 @@
 
         <!-- CHAT -->
         <div id="chat"></div>
-        <input type="text" id="chatInput" placeholder="Presiona C para chatear..." style="display:none">
+        <input type="text" id="chatInput" placeholder="Presiona C para chatear...">
 
         <!-- MENÚ DE CRAFTEO -->
         <div id="craftMenu">
@@ -470,14 +488,14 @@
             <div class="craft-recipe" onclick="craft('bate_mejorado')">
                 🏏 <strong>Bate Mejorado</strong><br>
                 Materiales: 🏏 Bate + ⚙️ Metal<br>
-                Efecto: 35 de daño (antes 15)
+                Efecto: 35 daño
             </div>
             <div class="craft-recipe" onclick="craft('molotov')">
                 🔥 <strong>Molotov</strong><br>
                 Materiales: 🧵 Tela<br>
-                Efecto: 50 de daño
+                Efecto: 50 daño
             </div>
-            <button onclick="closeCraft()" style="margin-top: 20px; padding: 10px 20px; background: #666; color: #fff; border: none; border-radius: 5px; cursor: pointer;">CERRAR (ESC)</button>
+            <button onclick="closeCraft()" style="margin-top: 20px; padding: 10px 20px; background: #666; color: #fff; border: none; border-radius: 5px; cursor: pointer;">CERRAR</button>
         </div>
     </div>
 
@@ -497,23 +515,18 @@
             appId: "1:687771248890:web:9e745c74483d03ccb58143"
         };
 
-        // Inicializar Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // ==================== CONSTANTES DEL JUEGO ====================
+        // ==================== CONSTANTES ====================
         const TILE_SIZE = 32;
         const MAP_SIZE = 80;
-        const CANVAS_WIDTH = 1200;
-        const CANVAS_HEIGHT = 800;
-        const MAX_ZOMBIES = 20;
+        const CANVAS_WIDTH = window.innerWidth > 1200 ? 1200 : window.innerWidth;
+        const CANVAS_HEIGHT = window.innerHeight > 800 ? 800 : window.innerHeight;
+        const MAX_ZOMBIES = 15;
         const ZOMBIE_SPAWN_POINTS = [
-            {x: 10, y: 10},
-            {x: 70, y: 10},
-            {x: 10, y: 70},
-            {x: 70, y: 70},
-            {x: 40, y: 10},
-            {x: 40, y: 70}
+            {x: 10, y: 10}, {x: 70, y: 10}, {x: 10, y: 70},
+            {x: 70, y: 70}, {x: 40, y: 10}
         ];
 
         const ITEMS = {
@@ -525,84 +538,51 @@
             bandage: {emoji: '💊', name: 'Vendaje', heal: 30},
             wood: {emoji: '🪵', name: 'Madera'},
             metal: {emoji: '⚙️', name: 'Metal'},
-            cloth: {emoji: '🧵', name: 'Tela'}
+            cloth: {emoji: '🧵', name: 'Tela'},
+            molotov: {emoji: '🔥', name: 'Molotov', damage: 50}
         };
 
         // ==================== VARIABLES GLOBALES ====================
-        let canvas, ctx;
-        let playerId = null;
-        let playerName = '';
+        let canvas, ctx, playerId = null, playerName = '';
         let localPlayer = {
-            x: 40,
-            y: 40,
-            health: 100,
-            hunger: 100,
-            thirst: 100,
-            inventory: ['knife', '', '', '', ''],
-            selectedSlot: 0
+            x: 40, y: 40, health: 100, hunger: 100, thirst: 100,
+            inventory: ['knife', '', '', '', ''], selectedSlot: 0
         };
-        let players = {};
-        let zombies = {};
-        let items = {};
-        let structures = {};
-        let keys = {};
-        let camera = {x: 0, y: 0};
-        let mousePos = {x: 0, y: 0};
-        let gameStarted = false;
-        let chatActive = false;
+        let players = {}, zombies = {}, items = {}, structures = {}, keys = {};
+        let camera = {x: 0, y: 0}, gameStarted = false, chatActive = false;
         let worldState = {
-            timeOfDay: 'day',
-            dayStartTime: Date.now(),
-            zombiesAlive: MAX_ZOMBIES,
-            gameWon: false
+            timeOfDay: 'day', dayStartTime: Date.now(),
+            zombiesAlive: MAX_ZOMBIES, gameWon: false
         };
+        let targetPosition = null, isMovingToTarget = false;
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        let targetPosition = null;
-        let isMovingToTarget = false;
 
         // ==================== MAPA ====================
         let mapData = [];
         function generateMap() {
-            // Inicializar mapa con hierba
             for(let y = 0; y < MAP_SIZE; y++) {
                 mapData[y] = [];
                 for(let x = 0; x < MAP_SIZE; x++) {
                     mapData[y][x] = {type: 'grass', emoji: '🌿'};
                 }
             }
-
-            // Carreteras
             for(let x = 0; x < MAP_SIZE; x++) {
-                mapData[20][x] = {type: 'road', emoji: '⬛'};
-                mapData[40][x] = {type: 'road', emoji: '⬛'};
-                mapData[60][x] = {type: 'road', emoji: '⬛'};
+                mapData[20][x] = mapData[40][x] = mapData[60][x] = {type: 'road', emoji: '⬛'};
             }
             for(let y = 0; y < MAP_SIZE; y++) {
-                mapData[y][20] = {type: 'road', emoji: '⬛'};
-                mapData[y][40] = {type: 'road', emoji: '⬛'};
-                mapData[y][60] = {type: 'road', emoji: '⬛'};
+                mapData[y][20] = mapData[y][40] = mapData[y][60] = {type: 'road', emoji: '⬛'};
             }
-
-            // Casas
             placeBuilding(5, 5, 10, 10, '🏠');
             placeBuilding(25, 5, 10, 10, '🏠');
             placeBuilding(45, 5, 10, 10, '🏠');
             placeBuilding(65, 5, 10, 10, '🏠');
             placeBuilding(5, 25, 10, 10, '🏠');
             placeBuilding(65, 25, 10, 10, '🏠');
-
-            // Hospital
             placeBuilding(45, 25, 12, 12, '🏥');
-
-            // Tienda
             placeBuilding(25, 45, 12, 10, '🏪');
-
-            // Bosque
             for(let y = 65; y < 78; y++) {
                 for(let x = 5; x < 35; x++) {
-                    if(Math.random() > 0.3) {
-                        mapData[y][x] = {type: 'tree', emoji: '🌲'};
-                    }
+                    if(Math.random() > 0.3) mapData[y][x] = {type: 'tree', emoji: '🌲'};
                 }
             }
         }
@@ -644,86 +624,58 @@
 
         function initializeGame() {
             gameStarted = true;
-
-            // Registrar jugador en Firebase
             database.ref('players/' + playerId).set({
-                name: playerName,
-                x: localPlayer.x,
-                y: localPlayer.y,
-                health: localPlayer.health,
-                hunger: localPlayer.hunger,
-                thirst: localPlayer.thirst,
-                inventory: localPlayer.inventory,
+                name: playerName, x: localPlayer.x, y: localPlayer.y,
+                health: localPlayer.health, hunger: localPlayer.hunger,
+                thirst: localPlayer.thirst, inventory: localPlayer.inventory,
                 lastUpdate: Date.now()
             });
 
-            // Inicializar zombies (solo el primer jugador)
             database.ref('zombies').once('value', (snapshot) => {
-                if(!snapshot.exists()) {
-                    initializeZombies();
-                }
+                if(!snapshot.exists()) initializeZombies();
             });
 
-            // Inicializar mundo
             database.ref('worldState').once('value', (snapshot) => {
                 if(!snapshot.exists()) {
                     database.ref('worldState').set({
-                        timeOfDay: 'day',
-                        dayStartTime: Date.now(),
-                        zombiesAlive: MAX_ZOMBIES,
-                        gameWon: false
+                        timeOfDay: 'day', dayStartTime: Date.now(),
+                        zombiesAlive: MAX_ZOMBIES, gameWon: false
                     });
                 }
             });
 
-            // Escuchar cambios
-            database.ref('players').on('value', (snapshot) => {
-                players = snapshot.val() || {};
-            });
-
-            database.ref('zombies').on('value', (snapshot) => {
-                zombies = snapshot.val() || {};
-            });
-
-            database.ref('worldState').on('value', (snapshot) => {
-                worldState = snapshot.val() || worldState;
+            database.ref('players').on('value', (s) => { players = s.val() || {}; });
+            database.ref('zombies').on('value', (s) => { zombies = s.val() || {}; });
+            database.ref('worldState').on('value', (s) => {
+                worldState = s.val() || worldState;
                 updateZombieCounter();
                 updateDayNight();
-                if(worldState.gameWon) {
-                    showVictory();
+                checkGameTime();
+                if(worldState.gameWon || worldState.gameLost) {
+                    showGameResult(worldState);
                 }
             });
+            database.ref('items').on('value', (s) => { items = s.val() || {}; });
+            database.ref('structures').on('value', (s) => { structures = s.val() || {}; });
 
-            database.ref('items').on('value', (snapshot) => {
-                items = snapshot.val() || {};
-            });
-
-            database.ref('structures').on('value', (snapshot) => {
-                structures = snapshot.val() || {};
-            });
-
-            // Desconexión
             database.ref('players/' + playerId).onDisconnect().remove();
 
-            // Spawn inicial de items
             spawnInitialItems();
 
-            // Update loop
             setInterval(updatePlayer, 50);
             setInterval(updateSurvival, 1000);
             setInterval(updateZombieAI, 200);
+            setInterval(checkGameTime, 10000); // Verificar cada 10 segundos
         }
 
         function initializeZombies() {
-            let zombieCount = 0;
+            let count = 0;
             ZOMBIE_SPAWN_POINTS.forEach((point, index) => {
                 for(let i = 0; i < 3; i++) {
-                    if(zombieCount >= MAX_ZOMBIES) return;
-                    
+                    if(count >= MAX_ZOMBIES) return;
                     const types = ['slow', 'slow', 'fast', 'tank'];
                     const type = types[Math.floor(Math.random() * types.length)];
-                    
-                    const zombieId = 'zombie_' + Date.now() + '_' + zombieCount;
+                    const zombieId = 'zombie_' + Date.now() + '_' + count;
                     database.ref('zombies/' + zombieId).set({
                         type: type,
                         x: point.x + Math.random() * 5,
@@ -733,19 +685,16 @@
                         targetX: point.x,
                         targetY: point.y
                     });
-                    zombieCount++;
+                    count++;
                 }
             });
         }
 
         function spawnInitialItems() {
-            // Items en casas y tiendas
             for(let i = 0; i < 30; i++) {
                 const itemTypes = Object.keys(ITEMS);
                 const itemType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-                const itemId = 'item_' + Date.now() + '_' + i;
-                
-                database.ref('items/' + itemId).set({
+                database.ref('items/item_' + Date.now() + '_' + i).set({
                     type: itemType,
                     x: Math.random() * MAP_SIZE,
                     y: Math.random() * MAP_SIZE
@@ -756,27 +705,19 @@
         // ==================== GAME LOOP ====================
         function gameLoop() {
             if(!gameStarted) return;
-            
             ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            
-            // Actualizar cámara
             camera.x = localPlayer.x * TILE_SIZE - CANVAS_WIDTH / 2;
             camera.y = localPlayer.y * TILE_SIZE - CANVAS_HEIGHT / 2;
-            
-            // Overlay de noche
             if(worldState.timeOfDay === 'night') {
                 ctx.fillStyle = 'rgba(0, 0, 20, 0.5)';
                 ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             }
-            
             drawMap();
             drawItems();
             drawStructures();
             drawZombies();
             drawPlayers();
-            
             updateInventoryUI();
-            
             requestAnimationFrame(gameLoop);
         }
 
@@ -785,13 +726,11 @@
             const startY = Math.floor(camera.y / TILE_SIZE);
             const endX = startX + Math.ceil(CANVAS_WIDTH / TILE_SIZE) + 1;
             const endY = startY + Math.ceil(CANVAS_HEIGHT / TILE_SIZE) + 1;
-            
             for(let y = Math.max(0, startY); y < Math.min(MAP_SIZE, endY); y++) {
                 for(let x = Math.max(0, startX); x < Math.min(MAP_SIZE, endX); x++) {
                     const tile = mapData[y][x];
                     const screenX = x * TILE_SIZE - camera.x;
                     const screenY = y * TILE_SIZE - camera.y;
-                    
                     ctx.font = '20px Arial';
                     ctx.fillText(tile.emoji, screenX + 6, screenY + 22);
                 }
@@ -802,19 +741,13 @@
             Object.entries(players).forEach(([id, player]) => {
                 const screenX = player.x * TILE_SIZE - camera.x;
                 const screenY = player.y * TILE_SIZE - camera.y;
-                
-                // Emoji jugador
                 ctx.font = '24px Arial';
                 ctx.fillText('🧍', screenX, screenY + 20);
-                
-                // Nombre
                 ctx.fillStyle = id === playerId ? '#ffff00' : '#ffffff';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText(player.name, screenX + 12, screenY - 5);
                 ctx.textAlign = 'left';
-                
-                // Barra de salud
                 ctx.fillStyle = '#ff0000';
                 ctx.fillRect(screenX, screenY + 25, 24, 3);
                 ctx.fillStyle = '#00ff00';
@@ -826,9 +759,7 @@
             Object.entries(zombies).forEach(([id, zombie]) => {
                 const screenX = zombie.x * TILE_SIZE - camera.x;
                 const screenY = zombie.y * TILE_SIZE - camera.y;
-                
-                let emoji = '🧟';
-                let size = '24px';
+                let emoji = '🧟', size = '24px';
                 if(zombie.type === 'fast') {
                     emoji = '🧟‍♂️';
                     ctx.fillStyle = '#ff4444';
@@ -838,17 +769,11 @@
                 } else {
                     ctx.fillStyle = '#44ff44';
                 }
-                
-                // Círculo de color
                 ctx.beginPath();
                 ctx.arc(screenX + 12, screenY + 12, zombie.type === 'tank' ? 16 : 12, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Emoji
                 ctx.font = size + ' Arial';
                 ctx.fillText(emoji, screenX, screenY + 20);
-                
-                // Barra de salud
                 const maxHealth = zombie.type === 'tank' ? 150 : (zombie.type === 'fast' ? 50 : 100);
                 ctx.fillStyle = '#ff0000';
                 ctx.fillRect(screenX, screenY + 28, 24, 2);
@@ -861,7 +786,6 @@
             Object.entries(items).forEach(([id, item]) => {
                 const screenX = item.x * TILE_SIZE - camera.x;
                 const screenY = item.y * TILE_SIZE - camera.y;
-                
                 const itemData = ITEMS[item.type];
                 if(itemData) {
                     ctx.font = '20px Arial';
@@ -874,10 +798,8 @@
             Object.entries(structures).forEach(([id, structure]) => {
                 const screenX = structure.x * TILE_SIZE - camera.x;
                 const screenY = structure.y * TILE_SIZE - camera.y;
-                
                 ctx.fillStyle = 'rgba(139, 69, 19, 0.8)';
                 ctx.fillRect(screenX, screenY, TILE_SIZE, TILE_SIZE);
-                
                 let emoji = structure.type === 'barricade' ? '🚧' : (structure.type === 'wall' ? '🧱' : '⚠️');
                 ctx.font = '20px Arial';
                 ctx.fillText(emoji, screenX + 6, screenY + 22);
@@ -887,11 +809,9 @@
         // ==================== ACTUALIZACIÓN ====================
         function updatePlayer() {
             if(!gameStarted) return;
-            
             let moved = false;
             const speed = 0.15;
             
-            // Movimiento con teclado (PC)
             if(keys['w'] || keys['ArrowUp']) {
                 localPlayer.y = Math.max(0, localPlayer.y - speed);
                 moved = true;
@@ -909,12 +829,11 @@
                 moved = true;
             }
             
-            // Movimiento automático hacia objetivo (móvil)
+            // Movimiento táctil
             if(isMovingToTarget && targetPosition) {
                 const dx = targetPosition.x - localPlayer.x;
                 const dy = targetPosition.y - localPlayer.y;
                 const distance = Math.hypot(dx, dy);
-                
                 if(distance > 0.3) {
                     const angle = Math.atan2(dy, dx);
                     localPlayer.x += Math.cos(angle) * speed;
@@ -936,29 +855,19 @@
         }
 
         function updateSurvival() {
-            // 4 días reales = 345600 segundos = reducción de 0.029% por segundo
             localPlayer.hunger = Math.max(0, localPlayer.hunger - 0.029);
             localPlayer.thirst = Math.max(0, localPlayer.thirst - 0.029);
-            
-            if(localPlayer.hunger <= 0 || localPlayer.thirst <= 0) {
-                die();
-            }
-            
+            if(localPlayer.hunger <= 0 || localPlayer.thirst <= 0) die();
             database.ref('players/' + playerId).update({
                 hunger: localPlayer.hunger,
                 thirst: localPlayer.thirst
             });
-            
             updateHUD();
         }
 
         function updateZombieAI() {
             Object.entries(zombies).forEach(([id, zombie]) => {
-                // Buscar jugador más cercano
-                let closestPlayer = null;
-                let closestPlayerId = null;
-                let closestDist = 20; // Radio de detección
-                
+                let closestPlayer = null, closestPlayerId = null, closestDist = 20;
                 Object.entries(players).forEach(([pId, player]) => {
                     const dist = Math.hypot(player.x - zombie.x, player.y - zombie.y);
                     if(dist < closestDist) {
@@ -969,34 +878,24 @@
                 });
                 
                 if(closestPlayer) {
-                    // Perseguir jugador
                     const angle = Math.atan2(closestPlayer.y - zombie.y, closestPlayer.x - zombie.x);
                     let speed = zombie.type === 'fast' ? 0.08 : (zombie.type === 'tank' ? 0.03 : 0.05);
                     if(worldState.timeOfDay === 'night') speed *= 1.5;
-                    
                     zombie.x += Math.cos(angle) * speed;
                     zombie.y += Math.sin(angle) * speed;
                     
-                    // DAÑO AL JUGADOR si está muy cerca
+                    // Daño al jugador
                     if(closestDist < 0.8) {
                         const currentTime = Date.now();
                         if(!zombie.lastAttack || currentTime - zombie.lastAttack > 1000) {
                             zombie.lastAttack = currentTime;
-                            
-                            // Daño según tipo de zombie
                             let damage = zombie.type === 'tank' ? 20 : (zombie.type === 'fast' ? 10 : 15);
-                            
-                            // Si es el jugador local, actualizar
                             if(closestPlayerId === playerId) {
                                 localPlayer.health = Math.max(0, localPlayer.health - damage);
                                 database.ref('players/' + playerId + '/health').set(localPlayer.health);
                                 updateHUD();
-                                
-                                if(localPlayer.health <= 0) {
-                                    die();
-                                }
+                                if(localPlayer.health <= 0) die();
                             } else {
-                                // Daño a otros jugadores
                                 database.ref('players/' + closestPlayerId + '/health').transaction((current) => {
                                     return Math.max(0, (current || 100) - damage);
                                 });
@@ -1004,29 +903,23 @@
                         }
                     }
                 } else {
-                    // Deambular hacia punto objetivo
                     if(!zombie.targetX) {
                         zombie.targetX = zombie.x + (Math.random() - 0.5) * 10;
                         zombie.targetY = zombie.y + (Math.random() - 0.5) * 10;
                     }
-                    
                     const distToTarget = Math.hypot(zombie.targetX - zombie.x, zombie.targetY - zombie.y);
                     if(distToTarget < 0.5) {
                         zombie.targetX = zombie.x + (Math.random() - 0.5) * 10;
                         zombie.targetY = zombie.y + (Math.random() - 0.5) * 10;
                     } else {
                         const angle = Math.atan2(zombie.targetY - zombie.y, zombie.targetX - zombie.x);
-                        const speed = 0.02;
-                        zombie.x += Math.cos(angle) * speed;
-                        zombie.y += Math.sin(angle) * speed;
+                        zombie.x += Math.cos(angle) * 0.02;
+                        zombie.y += Math.sin(angle) * 0.02;
                     }
                 }
-                
                 database.ref('zombies/' + id).update({
-                    x: zombie.x,
-                    y: zombie.y,
-                    targetX: zombie.targetX,
-                    targetY: zombie.targetY,
+                    x: zombie.x, y: zombie.y,
+                    targetX: zombie.targetX, targetY: zombie.targetY,
                     lastAttack: zombie.lastAttack || 0
                 });
             });
@@ -1036,35 +929,31 @@
         function attack(x, y) {
             const selectedItem = localPlayer.inventory[localPlayer.selectedSlot];
             const weapon = ITEMS[selectedItem];
-            
             if(!weapon || !weapon.damage) {
                 addChatMessage('Necesitas un arma equipada', 'system');
                 return;
             }
-            
-            // Buscar zombie en rango
             Object.entries(zombies).forEach(([id, zombie]) => {
                 const dist = Math.hypot(zombie.x - x, zombie.y - y);
                 if(dist < 1.5) {
                     zombie.health -= weapon.damage;
-                    
                     if(zombie.health <= 0) {
-                        // Zombie muerto - drop item
                         const dropTypes = ['food', 'water', 'wood', 'metal', 'cloth', 'bandage'];
                         const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
                         database.ref('items/item_' + Date.now()).set({
-                            type: dropType,
-                            x: zombie.x,
-                            y: zombie.y
+                            type: dropType, x: zombie.x, y: zombie.y
                         });
-                        
                         database.ref('zombies/' + id).remove();
-                        
-                        // Actualizar contador
                         database.ref('worldState/zombiesAlive').transaction((current) => {
                             const newCount = (current || 0) - 1;
                             if(newCount <= 0) {
-                                database.ref('worldState/gameWon').set(true);
+                                // Victoria - guardar nombres de ganadores
+                                const winnerNames = Object.values(players).map(p => p.name);
+                                database.ref('worldState').update({
+                                    gameWon: true,
+                                    winners: winnerNames,
+                                    endTime: Date.now()
+                                });
                             }
                             return newCount;
                         });
@@ -1073,8 +962,6 @@
                     }
                 }
             });
-            
-            // PvP - atacar otros jugadores
             Object.entries(players).forEach(([id, player]) => {
                 if(id === playerId) return;
                 const dist = Math.hypot(player.x - x, player.y - y);
@@ -1086,82 +973,41 @@
             });
         }
 
-        // Ataque con ESPACIO - ataca al zombie/jugador más cercano
         function attackNearest() {
             const selectedItem = localPlayer.inventory[localPlayer.selectedSlot];
             const weapon = ITEMS[selectedItem];
-            
             if(!weapon || !weapon.damage) {
-                addChatMessage('Necesitas un arma equipada', 'system');
+                addChatMessage('Necesitas un arma', 'system');
                 return;
             }
-
-            let nearestTarget = null;
-            let nearestDist = 2; // Radio de ataque con espacio
-
-            // Buscar zombie más cercano
+            let nearestTarget = null, nearestDist = 2;
             Object.entries(zombies).forEach(([id, zombie]) => {
                 const dist = Math.hypot(zombie.x - localPlayer.x, zombie.y - localPlayer.y);
                 if(dist < nearestDist) {
                     nearestDist = dist;
-                    nearestTarget = {type: 'zombie', id: id, data: zombie};
+                    nearestTarget = {type: 'zombie', data: zombie};
                 }
             });
-
-            // Buscar jugador más cercano (PvP)
             Object.entries(players).forEach(([id, player]) => {
                 if(id === playerId) return;
                 const dist = Math.hypot(player.x - localPlayer.x, player.y - localPlayer.y);
                 if(dist < nearestDist) {
                     nearestDist = dist;
-                    nearestTarget = {type: 'player', id: id, data: player};
+                    nearestTarget = {type: 'player', data: player};
                 }
             });
-
-            // Atacar objetivo más cercano
             if(nearestTarget) {
-                if(nearestTarget.type === 'zombie') {
-                    attack(nearestTarget.data.x, nearestTarget.data.y);
-                } else if(nearestTarget.type === 'player') {
-                    attack(nearestTarget.data.x, nearestTarget.data.y);
-                }
+                attack(nearestTarget.data.x, nearestTarget.data.y);
             } else {
                 addChatMessage('No hay objetivos cerca', 'system');
             }
         }
-                        
-                        // Actualizar contador
-                        database.ref('worldState/zombiesAlive').transaction((current) => {
-                            const newCount = (current || 0) - 1;
-                            if(newCount <= 0) {
-                                database.ref('worldState/gameWon').set(true);
-                            }
-                            return newCount;
-                        });
-                    } else {
-                        database.ref('zombies/' + id).update({health: zombie.health});
-                    }
-                }
-            });
-            
-            // PvP - atacar otros jugadores
-            Object.entries(players).forEach(([id, player]) => {
-                if(id === playerId) return;
-                const dist = Math.hypot(player.x - x, player.y - y);
-                if(dist < 1.5) {
-                    database.ref('players/' + id + '/health').transaction((current) => {
-                        return Math.max(0, (current || 100) - weapon.damage);
-                    });
-                }
-            });
-        }
 
-        // ==================== ITEMS E INVENTARIO ====================
+        // ==================== ITEMS ====================
         function pickupItem() {
             Object.entries(items).forEach(([id, item]) => {
                 const dist = Math.hypot(item.x - localPlayer.x, item.y - localPlayer.y);
                 if(dist < 1.5) {
-                    // Buscar slot vacío
                     const emptySlot = localPlayer.inventory.findIndex(slot => slot === '');
                     if(emptySlot !== -1) {
                         localPlayer.inventory[emptySlot] = item.type;
@@ -1178,30 +1024,26 @@
         function useItem() {
             const selectedItem = localPlayer.inventory[localPlayer.selectedSlot];
             if(!selectedItem) return;
-            
             const item = ITEMS[selectedItem];
-            
             if(item.heal) {
                 localPlayer.health = Math.min(100, localPlayer.health + item.heal);
                 removeItemFromInventory(localPlayer.selectedSlot);
-                addChatMessage('Usaste: ' + item.name + ' +' + item.heal + ' HP', 'system');
+                addChatMessage('Usaste: ' + item.name, 'system');
             } else if(item.hydrate) {
                 localPlayer.thirst = Math.min(100, localPlayer.thirst + item.hydrate);
                 removeItemFromInventory(localPlayer.selectedSlot);
-                addChatMessage('Bebiste agua +' + item.hydrate + ' sed', 'system');
+                addChatMessage('Bebiste agua', 'system');
             } else if(selectedItem === 'food') {
                 localPlayer.hunger = Math.min(100, localPlayer.hunger + 30);
                 removeItemFromInventory(localPlayer.selectedSlot);
-                addChatMessage('Comiste +30 hambre', 'system');
+                addChatMessage('Comiste', 'system');
             }
-            
             database.ref('players/' + playerId).update({
                 health: localPlayer.health,
                 hunger: localPlayer.hunger,
                 thirst: localPlayer.thirst,
                 inventory: localPlayer.inventory
             });
-            
             updateHUD();
         }
 
@@ -1227,38 +1069,28 @@
 
         // ==================== CONSTRUCCIÓN ====================
         function buildStructure(type) {
-            // Verificar materiales
             const hasWood = localPlayer.inventory.includes('wood');
             const hasMetal = localPlayer.inventory.includes('metal');
-            
             if(!hasWood) {
-                addChatMessage('Necesitas madera 🪵', 'system');
+                addChatMessage('Necesitas madera', 'system');
                 return;
             }
-            
             if(type === 'wall' && !hasMetal) {
-                addChatMessage('Necesitas metal ⚙️', 'system');
+                addChatMessage('Necesitas metal', 'system');
                 return;
             }
-            
-            // Construir
-            const structureId = 'struct_' + Date.now();
-            database.ref('structures/' + structureId).set({
+            database.ref('structures/struct_' + Date.now()).set({
                 type: type,
                 x: Math.floor(localPlayer.x),
                 y: Math.floor(localPlayer.y),
                 owner: playerId
             });
-            
-            // Consumir materiales
             const woodIndex = localPlayer.inventory.indexOf('wood');
             if(woodIndex !== -1) removeItemFromInventory(woodIndex);
-            
             if(type === 'wall') {
                 const metalIndex = localPlayer.inventory.indexOf('metal');
                 if(metalIndex !== -1) removeItemFromInventory(metalIndex);
             }
-            
             addChatMessage('Construiste: ' + type, 'system');
         }
 
@@ -1267,53 +1099,36 @@
             if(recipe === 'vendaje') {
                 const clothIndex = localPlayer.inventory.indexOf('cloth');
                 if(clothIndex !== -1) {
-                    // Consumir tela
                     localPlayer.inventory[clothIndex] = 'bandage';
                     database.ref('players/' + playerId + '/inventory').set(localPlayer.inventory);
-                    addChatMessage('✅ Crafteaste: Vendaje 💊', 'system');
+                    addChatMessage('✅ Crafteaste: Vendaje', 'system');
                     updateInventoryUI();
                 } else {
-                    addChatMessage('❌ Necesitas: Tela 🧵', 'system');
+                    addChatMessage('❌ Necesitas: Tela', 'system');
                 }
             } else if(recipe === 'bate_mejorado') {
                 const batIndex = localPlayer.inventory.indexOf('bat');
                 const metalIndex = localPlayer.inventory.indexOf('metal');
-                
                 if(batIndex !== -1 && metalIndex !== -1) {
-                    // Consumir bate y metal, crear bate mejorado
-                    localPlayer.inventory[metalIndex] = ''; // Eliminar metal
-                    // El bate se mantiene pero con más daño (lo manejamos en ITEMS)
-                    addChatMessage('✅ Bate mejorado creado! (Ahora hace 35 de daño)', 'system');
-                    
-                    // Actualizar el item a una versión mejorada
+                    localPlayer.inventory[metalIndex] = '';
                     ITEMS.bat.damage = 35;
-                    ITEMS.bat.name = 'Bate Mejorado';
-                    
                     database.ref('players/' + playerId + '/inventory').set(localPlayer.inventory);
+                    addChatMessage('✅ Bate mejorado (35 daño)', 'system');
                     updateInventoryUI();
                 } else {
-                    addChatMessage('❌ Necesitas: Bate 🏏 + Metal ⚙️', 'system');
+                    addChatMessage('❌ Necesitas: Bate + Metal', 'system');
                 }
             } else if(recipe === 'molotov') {
                 const clothIndex = localPlayer.inventory.indexOf('cloth');
-                
                 if(clothIndex !== -1) {
-                    // Por simplicidad, solo necesitamos tela para el molotov
                     localPlayer.inventory[clothIndex] = 'molotov';
-                    
-                    // Agregar molotov a ITEMS si no existe
-                    if(!ITEMS.molotov) {
-                        ITEMS.molotov = {emoji: '🔥', name: 'Molotov', damage: 50};
-                    }
-                    
                     database.ref('players/' + playerId + '/inventory').set(localPlayer.inventory);
-                    addChatMessage('✅ Crafteaste: Molotov 🔥 (50 de daño)', 'system');
+                    addChatMessage('✅ Crafteaste: Molotov', 'system');
                     updateInventoryUI();
                 } else {
-                    addChatMessage('❌ Necesitas: Tela 🧵', 'system');
+                    addChatMessage('❌ Necesitas: Tela', 'system');
                 }
             }
-            
             closeCraft();
         }
 
@@ -1323,6 +1138,15 @@
 
         function closeCraft() {
             document.getElementById('craftMenu').style.display = 'none';
+        }
+
+        function toggleBuildMenu() {
+            const menu = document.getElementById('buildMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function closeBuildMenu() {
+            document.getElementById('buildMenu').style.display = 'none';
         }
 
         // ==================== CHAT ====================
@@ -1335,7 +1159,7 @@
             chat.scrollTop = chat.scrollHeight;
         }
 
-        // ==================== UI UPDATES ====================
+        // ==================== UI ====================
         function updateHUD() {
             document.getElementById('healthBar').style.width = localPlayer.health + '%';
             document.getElementById('hungerBar').style.width = localPlayer.hunger + '%';
@@ -1348,21 +1172,85 @@
 
         function updateDayNight() {
             const elapsed = Date.now() - worldState.dayStartTime;
-            const cycleTime = 5 * 60 * 1000; // 5 minutos
-            
-            if(elapsed > cycleTime) {
+            if(elapsed > 5 * 60 * 1000) {
                 const newTime = worldState.timeOfDay === 'day' ? 'night' : 'day';
                 database.ref('worldState').update({
                     timeOfDay: newTime,
                     dayStartTime: Date.now()
                 });
             }
-            
             document.getElementById('dayNight').textContent = worldState.timeOfDay === 'day' ? '☀️ DÍA' : '🌙 NOCHE';
         }
 
+        function checkGameTime() {
+            if(worldState.gameWon || worldState.gameLost) return;
+            
+            const elapsed = Date.now() - worldState.gameStartTime;
+            const ONE_HOUR = 60 * 60 * 1000; // 1 hora en milisegundos
+            
+            // Si pasó 1 hora y no ganaron = DERROTA
+            if(elapsed > ONE_HOUR && worldState.zombiesAlive > 0) {
+                database.ref('worldState').update({
+                    gameLost: true,
+                    endTime: Date.now()
+                });
+            }
+        }
+
+        function showGameResult(state) {
+            if(gameEndTimer) return; // Ya se mostró
+            
+            const screen = document.getElementById('victoryScreen');
+            const title = document.getElementById('resultTitle');
+            const message = document.getElementById('resultMessage');
+            const countdown = document.getElementById('countdown');
+            
+            if(state.gameWon) {
+                screen.classList.remove('defeat');
+                title.textContent = '🎉 ¡VICTORIA! 🎉';
+                const winners = state.winners && state.winners.length > 0 
+                    ? state.winners.join(', ') 
+                    : 'Los jugadores';
+                message.textContent = `${winners} han eliminado a todos los zombies!`;
+            } else if(state.gameLost) {
+                screen.classList.add('defeat');
+                title.textContent = '💀 DERROTA 💀';
+                message.textContent = 'Se acabó el tiempo. Los zombies han ganado...';
+            }
+            
+            screen.style.display = 'flex';
+            
+            // Countdown de 30 segundos
+            let seconds = 30;
+            countdown.textContent = `Reiniciando en ${seconds} segundos...`;
+            
+            gameEndTimer = setInterval(() => {
+                seconds--;
+                countdown.textContent = `Reiniciando en ${seconds} segundos...`;
+                
+                if(seconds <= 0) {
+                    clearInterval(gameEndTimer);
+                    resetGame();
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            // Limpiar Firebase completamente
+            database.ref('players').remove();
+            database.ref('zombies').remove();
+            database.ref('items').remove();
+            database.ref('structures').remove();
+            database.ref('worldState').remove();
+            
+            // Recargar página
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+
         function showVictory() {
-            document.getElementById('victoryScreen').style.display = 'flex';
+            // Deprecated - usar showGameResult
         }
 
         function die() {
@@ -1372,64 +1260,43 @@
             location.reload();
         }
 
-        // ==================== EVENT LISTENERS ====================
+        function showMoveIndicator(worldX, worldY) {
+            const indicator = document.getElementById('moveIndicator');
+            const screenX = worldX * TILE_SIZE - camera.x;
+            const screenY = worldY * TILE_SIZE - camera.y;
+            indicator.style.left = screenX + 'px';
+            indicator.style.top = screenY + 'px';
+            indicator.style.display = 'block';
+            setTimeout(() => indicator.style.display = 'none', 500);
+        }
+
+        // ==================== EVENTS ====================
         function setupEventListeners() {
-            // Teclado (PC)
             document.addEventListener('keydown', (e) => {
                 keys[e.key.toLowerCase()] = true;
-                
-                if(e.key === ' ' || e.key === 'Spacebar') {
-                    e.preventDefault();
-                    attackNearest();
-                }
-                if(e.key.toLowerCase() === 'f') {
-                    pickupItem();
-                }
-                if(e.key.toLowerCase() === 'e') {
-                    openCraft();
-                }
-                if(e.key.toLowerCase() === 'r') {
-                    useItem();
-                }
-                if(e.key.toLowerCase() === 'b') {
-                    buildStructure('barricade');
-                }
-                if(e.key.toLowerCase() === 'm') {
-                    buildStructure('wall');
-                }
-                if(e.key.toLowerCase() === 't') {
-                    buildStructure('trap');
-                }
+                if(e.key === ' ') { e.preventDefault(); attackNearest(); }
+                if(e.key.toLowerCase() === 'f') pickupItem();
+                if(e.key.toLowerCase() === 'e') openCraft();
+                if(e.key.toLowerCase() === 'r') useItem();
+                if(e.key.toLowerCase() === 'b') buildStructure('barricade');
+                if(e.key.toLowerCase() === 'm') buildStructure('wall');
+                if(e.key.toLowerCase() === 't') buildStructure('trap');
                 if(e.key.toLowerCase() === 'c') {
                     chatActive = !chatActive;
                     document.getElementById('chatInput').style.display = chatActive ? 'block' : 'none';
                     if(chatActive) document.getElementById('chatInput').focus();
                 }
-                
-                // Selección de slots
-                if(e.key >= '1' && e.key <= '5') {
-                    selectSlot(parseInt(e.key) - 1);
-                }
-                
-                // Cerrar crafteo con ESC
-                if(e.key === 'Escape') {
-                    closeCraft();
-                }
+                if(e.key >= '1' && e.key <= '5') selectSlot(parseInt(e.key) - 1);
+                if(e.key === 'Escape') closeCraft();
             });
 
             document.addEventListener('keyup', (e) => {
                 keys[e.key.toLowerCase()] = false;
             });
 
-            // Click/Tap en canvas
-            canvas.addEventListener('click', handleCanvasClick);
-            canvas.addEventListener('touchstart', handleCanvasTouch);
-
-            canvas.addEventListener('mousemove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                mousePos.x = e.clientX - rect.left;
-                mousePos.y = e.clientY - rect.top;
-            });
+            // Click y Touch
+            canvas.addEventListener('click', handleClick);
+            canvas.addEventListener('touchstart', handleTouch);
 
             document.getElementById('chatInput').addEventListener('keypress', (e) => {
                 if(e.key === 'Enter') {
@@ -1437,102 +1304,67 @@
                     if(msg) {
                         addChatMessage(msg);
                         database.ref('chat').push({
-                            player: playerName,
-                            message: msg,
-                            time: Date.now()
+                            player: playerName, message: msg, time: Date.now()
                         });
                         e.target.value = '';
                     }
                 }
             });
         }
-        
-        function handleCanvasClick(e) {
+
+        function handleClick(e) {
             const rect = canvas.getBoundingClientRect();
-            const clickX = (e.clientX - rect.left + camera.x) / TILE_SIZE;
-            const clickY = (e.clientY - rect.top + camera.y) / TILE_SIZE;
-            handleGameClick(clickX, clickY);
+            const worldX = (e.clientX - rect.left + camera.x) / TILE_SIZE;
+            const worldY = (e.clientY - rect.top + camera.y) / TILE_SIZE;
+            handleGameClick(worldX, worldY);
         }
-        
-        function handleCanvasTouch(e) {
+
+        function handleTouch(e) {
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
             const touch = e.touches[0];
-            const clickX = (touch.clientX - rect.left + camera.x) / TILE_SIZE;
-            const clickY = (touch.clientY - rect.top + camera.y) / TILE_SIZE;
-            handleGameClick(clickX, clickY);
+            const worldX = (touch.clientX - rect.left + camera.x) / TILE_SIZE;
+            const worldY = (touch.clientY - rect.top + camera.y) / TILE_SIZE;
+            handleGameClick(worldX, worldY);
         }
-        
+
         function handleGameClick(worldX, worldY) {
-            // Prioridad 1: Atacar zombie cercano
-            let attackedZombie = false;
+            // 1. Atacar zombie
+            let attacked = false;
             Object.entries(zombies).forEach(([id, zombie]) => {
-                const dist = Math.hypot(zombie.x - worldX, zombie.y - worldY);
-                if(dist < 1.5) {
+                if(Math.hypot(zombie.x - worldX, zombie.y - worldY) < 1.5) {
                     attack(worldX, worldY);
-                    attackedZombie = true;
+                    attacked = true;
                 }
             });
+            if(attacked) return;
             
-            if(attackedZombie) return;
-            
-            // Prioridad 2: Recoger item cercano
-            let pickedItem = false;
+            // 2. Recoger item
             Object.entries(items).forEach(([id, item]) => {
-                const dist = Math.hypot(item.x - worldX, item.y - worldY);
-                if(dist < 1.5) {
+                if(Math.hypot(item.x - worldX, item.y - worldY) < 1.5) {
                     targetPosition = {x: item.x, y: item.y};
                     isMovingToTarget = true;
                     showMoveIndicator(worldX, worldY);
-                    
-                    // Auto-recoger cuando llegue
                     setTimeout(() => pickupItem(), 500);
-                    pickedItem = true;
+                    attacked = true;
                 }
             });
+            if(attacked) return;
             
-            if(pickedItem) return;
-            
-            // Prioridad 3: Atacar jugador cercano (PvP)
-            let attackedPlayer = false;
+            // 3. Atacar jugador
             Object.entries(players).forEach(([id, player]) => {
                 if(id === playerId) return;
-                const dist = Math.hypot(player.x - worldX, player.y - worldY);
-                if(dist < 1.5) {
+                if(Math.hypot(player.x - worldX, player.y - worldY) < 1.5) {
                     attack(worldX, worldY);
-                    attackedPlayer = true;
+                    attacked = true;
                 }
             });
+            if(attacked) return;
             
-            if(attackedPlayer) return;
-            
-            // Prioridad 4: Mover a esa posición
+            // 4. Mover
             targetPosition = {x: worldX, y: worldY};
             isMovingToTarget = true;
             showMoveIndicator(worldX, worldY);
-        }
-        
-        function showMoveIndicator(worldX, worldY) {
-            const indicator = document.getElementById('moveIndicator');
-            const screenX = worldX * TILE_SIZE - camera.x;
-            const screenY = worldY * TILE_SIZE - camera.y;
-            
-            indicator.style.left = screenX + 'px';
-            indicator.style.top = screenY + 'px';
-            indicator.style.display = 'block';
-            
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 500);
-        }
-        
-        function toggleBuildMenu() {
-            const menu = document.getElementById('buildMenu');
-            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-        }
-        
-        function closeBuildMenu() {
-            document.getElementById('buildMenu').style.display = 'none';
         }
     </script>
 </body>
