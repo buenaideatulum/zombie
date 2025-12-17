@@ -260,6 +260,94 @@
             font-size: 12px;
             max-width: 200px;
         }
+        
+        /* Controles móviles */
+        #mobileControls {
+            position: fixed;
+            bottom: 90px;
+            right: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 50;
+        }
+        
+        .mobile-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 68, 68, 0.8);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .mobile-btn:active {
+            transform: scale(0.9);
+            background: rgba(255, 68, 68, 1);
+        }
+        
+        .mobile-btn.secondary {
+            background: rgba(68, 68, 255, 0.8);
+        }
+        
+        .mobile-btn.secondary:active {
+            background: rgba(68, 68, 255, 1);
+        }
+        
+        #moveIndicator {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #ffff00;
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            transform: translate(-50%, -50%);
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.5; }
+        }
+        
+        @media (max-width: 768px) {
+            #controls {
+                display: none;
+            }
+            #mobileControls {
+                display: flex;
+            }
+            #hud {
+                font-size: 14px;
+                min-width: 200px;
+            }
+            #inventory {
+                bottom: 80px;
+            }
+            .inv-slot {
+                width: 50px;
+                height: 50px;
+                font-size: 28px;
+            }
+            #chat {
+                width: 250px;
+                height: 150px;
+                font-size: 12px;
+            }
+            #chatInput {
+                width: 250px;
+            }
+        }
+        
         .minimap {
             position: fixed;
             top: 10px;
@@ -323,6 +411,25 @@
 
         <!-- DÍA/NOCHE -->
         <div id="dayNight">☀️ DÍA</div>
+
+        <!-- CONTROLES MÓVILES -->
+        <div id="mobileControls">
+            <div class="mobile-btn" onclick="openCraft()" title="Craftear">🎒</div>
+            <div class="mobile-btn secondary" onclick="useItem()" title="Usar item">💊</div>
+            <div class="mobile-btn secondary" onclick="toggleBuildMenu()" title="Construir">🔨</div>
+        </div>
+        
+        <!-- INDICADOR DE MOVIMIENTO -->
+        <div id="moveIndicator"></div>
+
+        <!-- MENÚ DE CONSTRUCCIÓN MÓVIL -->
+        <div id="buildMenu" style="display: none; position: fixed; bottom: 180px; right: 10px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 10px; border: 2px solid #fff;">
+            <div style="font-weight: bold; margin-bottom: 10px; color: #fff;">CONSTRUIR:</div>
+            <button onclick="buildStructure('barricade'); closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin: 5px 0; background: #ff4444; color: #fff; border: none; border-radius: 5px; font-size: 16px;">🚧 Barricada</button>
+            <button onclick="buildStructure('wall'); closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin: 5px 0; background: #ff4444; color: #fff; border: none; border-radius: 5px; font-size: 16px;">🧱 Muro</button>
+            <button onclick="buildStructure('trap'); closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin: 5px 0; background: #ff4444; color: #fff; border: none; border-radius: 5px; font-size: 16px;">⚠️ Trampa</button>
+            <button onclick="closeBuildMenu();" style="display: block; width: 100%; padding: 10px; margin-top: 10px; background: #666; color: #fff; border: none; border-radius: 5px;">Cerrar</button>
+        </div>
 
         <!-- CONTROLES -->
         <div id="controls">
@@ -449,6 +556,9 @@
             zombiesAlive: MAX_ZOMBIES,
             gameWon: false
         };
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let targetPosition = null;
+        let isMovingToTarget = false;
 
         // ==================== MAPA ====================
         let mapData = [];
@@ -781,6 +891,7 @@
             let moved = false;
             const speed = 0.15;
             
+            // Movimiento con teclado (PC)
             if(keys['w'] || keys['ArrowUp']) {
                 localPlayer.y = Math.max(0, localPlayer.y - speed);
                 moved = true;
@@ -796,6 +907,23 @@
             if(keys['d'] || keys['ArrowRight']) {
                 localPlayer.x = Math.min(MAP_SIZE - 1, localPlayer.x + speed);
                 moved = true;
+            }
+            
+            // Movimiento automático hacia objetivo (móvil)
+            if(isMovingToTarget && targetPosition) {
+                const dx = targetPosition.x - localPlayer.x;
+                const dy = targetPosition.y - localPlayer.y;
+                const distance = Math.hypot(dx, dy);
+                
+                if(distance > 0.3) {
+                    const angle = Math.atan2(dy, dx);
+                    localPlayer.x += Math.cos(angle) * speed;
+                    localPlayer.y += Math.sin(angle) * speed;
+                    moved = true;
+                } else {
+                    isMovingToTarget = false;
+                    targetPosition = null;
+                }
             }
             
             if(moved) {
@@ -1246,6 +1374,7 @@
 
         // ==================== EVENT LISTENERS ====================
         function setupEventListeners() {
+            // Teclado (PC)
             document.addEventListener('keydown', (e) => {
                 keys[e.key.toLowerCase()] = true;
                 
@@ -1292,12 +1421,9 @@
                 keys[e.key.toLowerCase()] = false;
             });
 
-            canvas.addEventListener('click', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const clickX = (e.clientX - rect.left + camera.x) / TILE_SIZE;
-                const clickY = (e.clientY - rect.top + camera.y) / TILE_SIZE;
-                attack(clickX, clickY);
-            });
+            // Click/Tap en canvas
+            canvas.addEventListener('click', handleCanvasClick);
+            canvas.addEventListener('touchstart', handleCanvasTouch);
 
             canvas.addEventListener('mousemove', (e) => {
                 const rect = canvas.getBoundingClientRect();
@@ -1319,6 +1445,94 @@
                     }
                 }
             });
+        }
+        
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left + camera.x) / TILE_SIZE;
+            const clickY = (e.clientY - rect.top + camera.y) / TILE_SIZE;
+            handleGameClick(clickX, clickY);
+        }
+        
+        function handleCanvasTouch(e) {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const clickX = (touch.clientX - rect.left + camera.x) / TILE_SIZE;
+            const clickY = (touch.clientY - rect.top + camera.y) / TILE_SIZE;
+            handleGameClick(clickX, clickY);
+        }
+        
+        function handleGameClick(worldX, worldY) {
+            // Prioridad 1: Atacar zombie cercano
+            let attackedZombie = false;
+            Object.entries(zombies).forEach(([id, zombie]) => {
+                const dist = Math.hypot(zombie.x - worldX, zombie.y - worldY);
+                if(dist < 1.5) {
+                    attack(worldX, worldY);
+                    attackedZombie = true;
+                }
+            });
+            
+            if(attackedZombie) return;
+            
+            // Prioridad 2: Recoger item cercano
+            let pickedItem = false;
+            Object.entries(items).forEach(([id, item]) => {
+                const dist = Math.hypot(item.x - worldX, item.y - worldY);
+                if(dist < 1.5) {
+                    targetPosition = {x: item.x, y: item.y};
+                    isMovingToTarget = true;
+                    showMoveIndicator(worldX, worldY);
+                    
+                    // Auto-recoger cuando llegue
+                    setTimeout(() => pickupItem(), 500);
+                    pickedItem = true;
+                }
+            });
+            
+            if(pickedItem) return;
+            
+            // Prioridad 3: Atacar jugador cercano (PvP)
+            let attackedPlayer = false;
+            Object.entries(players).forEach(([id, player]) => {
+                if(id === playerId) return;
+                const dist = Math.hypot(player.x - worldX, player.y - worldY);
+                if(dist < 1.5) {
+                    attack(worldX, worldY);
+                    attackedPlayer = true;
+                }
+            });
+            
+            if(attackedPlayer) return;
+            
+            // Prioridad 4: Mover a esa posición
+            targetPosition = {x: worldX, y: worldY};
+            isMovingToTarget = true;
+            showMoveIndicator(worldX, worldY);
+        }
+        
+        function showMoveIndicator(worldX, worldY) {
+            const indicator = document.getElementById('moveIndicator');
+            const screenX = worldX * TILE_SIZE - camera.x;
+            const screenY = worldY * TILE_SIZE - camera.y;
+            
+            indicator.style.left = screenX + 'px';
+            indicator.style.top = screenY + 'px';
+            indicator.style.display = 'block';
+            
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 500);
+        }
+        
+        function toggleBuildMenu() {
+            const menu = document.getElementById('buildMenu');
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function closeBuildMenu() {
+            document.getElementById('buildMenu').style.display = 'none';
         }
     </script>
 </body>
