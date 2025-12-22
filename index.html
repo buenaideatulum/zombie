@@ -669,14 +669,17 @@
         }
 
         function initializeZombies() {
+            const zombieUpdates = {};
             let count = 0;
+            
             ZOMBIE_SPAWN_POINTS.forEach((point, index) => {
                 for(let i = 0; i < 3; i++) {
                     if(count >= MAX_ZOMBIES) return;
                     const types = ['slow', 'slow', 'fast', 'tank'];
                     const type = types[Math.floor(Math.random() * types.length)];
-                    const zombieId = 'zombie_' + Date.now() + '_' + count;
-                    database.ref('zombies/' + zombieId).set({
+                    const zombieId = 'zombie_' + Date.now() + '_' + count + '_' + Math.random().toString(36).substr(2, 5);
+                    
+                    zombieUpdates[zombieId] = {
                         type: type,
                         x: point.x + Math.random() * 5,
                         y: point.y + Math.random() * 5,
@@ -684,9 +687,16 @@
                         spawnPoint: index,
                         targetX: point.x,
                         targetY: point.y
-                    });
+                    };
                     count++;
                 }
+            });
+            
+            // Crear todos los zombies de una vez
+            database.ref('zombies').set(zombieUpdates).then(() => {
+                console.log('✅ Zombies creados:', count);
+                // Actualizar contador inicial
+                database.ref('worldState/zombiesAlive').set(count);
             });
         }
 
@@ -926,42 +936,68 @@
         }
 
         // ==================== COMBATE ====================
+        let isAttacking = false; // Prevenir ataques múltiples simultáneos
+        
         function attack(x, y) {
+            if(isAttacking) return;
+            isAttacking = true;
+            
             const selectedItem = localPlayer.inventory[localPlayer.selectedSlot];
             const weapon = ITEMS[selectedItem];
             if(!weapon || !weapon.damage) {
                 addChatMessage('Necesitas un arma equipada', 'system');
+                isAttacking = false;
                 return;
             }
+            
+            let zombieKilled = false;
+            
             Object.entries(zombies).forEach(([id, zombie]) => {
                 const dist = Math.hypot(zombie.x - x, zombie.y - y);
-                if(dist < 1.5) {
+                if(dist < 1.5 && !zombieKilled) {
                     zombie.health -= weapon.damage;
+                    
                     if(zombie.health <= 0) {
+                        zombieKilled = true;
+                        
+                        // Drop item
                         const dropTypes = ['food', 'water', 'wood', 'metal', 'cloth', 'bandage'];
                         const dropType = dropTypes[Math.floor(Math.random() * dropTypes.length)];
                         database.ref('items/item_' + Date.now()).set({
                             type: dropType, x: zombie.x, y: zombie.y
                         });
+                        
+                        // Eliminar zombie
                         database.ref('zombies/' + id).remove();
-                        database.ref('worldState/zombiesAlive').transaction((current) => {
-                            const newCount = (current || 0) - 1;
+                        
+                        // Decrementar contador de forma segura
+                        database.ref('worldState').once('value', (snapshot) => {
+                            const state = snapshot.val();
+                            const currentCount = state.zombiesAlive || 0;
+                            const newCount = Math.max(0, currentCount - 1);
+                            
+                            console.log('🧟 Zombie eliminado. Contador:', currentCount, '→', newCount);
+                            
                             if(newCount <= 0) {
-                                // Victoria - guardar nombres de ganadores
+                                // Victoria
                                 const winnerNames = Object.values(players).map(p => p.name);
                                 database.ref('worldState').update({
                                     gameWon: true,
                                     winners: winnerNames,
-                                    endTime: Date.now()
+                                    endTime: Date.now(),
+                                    zombiesAlive: 0
                                 });
+                            } else {
+                                database.ref('worldState/zombiesAlive').set(newCount);
                             }
-                            return newCount;
                         });
                     } else {
                         database.ref('zombies/' + id).update({health: zombie.health});
                     }
                 }
             });
+            
+            // PvP
             Object.entries(players).forEach(([id, player]) => {
                 if(id === playerId) return;
                 const dist = Math.hypot(player.x - x, player.y - y);
@@ -971,6 +1007,8 @@
                     });
                 }
             });
+            
+            setTimeout(() => { isAttacking = false; }, 300);
         }
 
         function attackNearest() {
@@ -1167,7 +1205,8 @@
         }
 
         function updateZombieCounter() {
-            document.getElementById('zombieCounter').textContent = '🧟 ' + worldState.zombiesAlive + '/' + MAX_ZOMBIES;
+            const count = Math.max(0, worldState.zombiesAlive || 0);
+            document.getElementById('zombieCounter').textContent = '🧟 ' + count + '/' + MAX_ZOMBIES;
         }
 
         function updateDayNight() {
@@ -1302,6 +1341,35 @@
                 if(e.key === 'Enter') {
                     const msg = e.target.value.trim();
                     if(msg) {
+                        // TRUCO DE TESTEO
+                        if(msg.toLowerCase() === 'z1') {
+                            addChatMessage('🔧 MODO TESTEO ACTIVADO - Solo necesitas 1 zombie', 'system');
+                            database.ref('worldState/zombiesAlive').set(1);
+                            e.target.value = '';
+                            return;
+                        }
+                        
+                        // RESET COMPLETO
+                        if(msg.toLowerCase() === 'reset') {
+                            addChatMessage('🔄 RESETEANDO JUEGO COMPLETO...', 'system');
+                            resetGame();
+                            e.target.value = '';
+                            return;
+                        }
+                        
+                        // FIX ZOMBIES
+                        if(msg.toLowerCase() === 'fixzombies') {
+                            addChatMessage('🔧 REPARANDO ZOMBIES...', 'system');
+                            database.ref('zombies').remove();
+                            database.ref('worldState/zombiesAlive').set(MAX_ZOMBIES);
+                            setTimeout(() => {
+                                initializeZombies();
+                                addChatMessage('✅ Zombies reparados!', 'system');
+                            }, 1000);
+                            e.target.value = '';
+                            return;
+                        }
+                        
                         addChatMessage(msg);
                         database.ref('chat').push({
                             player: playerName, message: msg, time: Date.now()
